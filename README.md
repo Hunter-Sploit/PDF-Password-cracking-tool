@@ -1,67 +1,82 @@
-# PDF Password Cracker
+# SmartCrack
 
-This Python script attempts to crack the password of a protected PDF file using a wordlist. It leverages the `pikepdf` library for PDF manipulation and `termcolor` for colored terminal output.
+> Authorized use only. Use only on systems/files you own or are explicitly authorized to test.
 
-## Prerequisites
+SmartCrack evolves this repository from a legacy PDF-only dictionary cracker into a modular framework that automates detection, extraction, identification, and cracking backend selection across common formats.
 
-Before running the script, ensure you have the following installed:
+## Reuse of the original PDF cracker
 
-* **Python 3.x:** You can download it from [python.org](https://www.python.org/).
-* **pikepdf:** Install it using pip:
-    ```bash
-    pip install pikepdf
-    ```
-* **termcolor:** Install it using pip:
-    ```bash
-    pip install termcolor
-    ```
+The original script's strengths were:
+- simple dictionary-first workflow
+- local-only execution
+- practical PDF target focus
 
-## Usage
+Those workflows are preserved and generalized:
+- PDF path now flows through detector -> `pdf2john` extractor -> identifier -> backend runner
+- wordlist-first behavior remains the default strategy
+- legacy entrypoint (`pdf_cracker.py`) still works as a compatibility launcher
 
-1.  **Prepare a Wordlist:** Create a text file (e.g., `wordlist.txt`) containing a list of potential passwords, one password per line.
-2.  **Place the PDF:** Put the protected PDF file (e.g., `remote.pdf`) in the same directory as the Python script.
-3.  **Run the Script:** Execute the Python script.
-    ```bash
-    python pdf_cracker.py
-    ```
-4.  **Observe the Output:** The script will attempt each password from the wordlist and display the results in the terminal.
-    * If a password is incorrect, it will be printed in red.
-    * If a password is correct, it will be printed in green, and the script will terminate.
-5.  **Modify the script:**
-    * Change `"remote.pdf"` to the path of your pdf
-    * Change `"wordlist.txt"` to the path of your wordlist.
+## Install
 
-## Example
+### 1) Python setup
 
-Assuming you have a PDF file named `my_protected.pdf` and a wordlist named `passwords.txt`, and your python script is named `pdf_cracker.py`, you would:
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
 
-1.  Place `my_protected.pdf`, `passwords.txt`, and `pdf_cracker.py` in the same folder.
-2.  Run: `python pdf_cracker.py`
-3.  Modify the python script to:
-    ```python
-    import pikepdf
-    from termcolor import colored
+### 2) External tooling
+Install as many of these as possible:
+- `john` (jumbo build recommended for `*2john` extractors)
+- `hashcat`
 
-    file = open("passwords.txt")
+If one backend is missing, SmartCrack will automatically try the other when possible.
 
-    for password in file:
-        try:
-            with pikepdf.open("my_protected.pdf", password.strip()) as p:
-                print(colored("Password Found: {}".format(password), "green"))
-                break
-        except:
-            print(colored("Trying Password: {}".format(password), "red"), end="")
-            continue
-    ```
+## Commands
 
-## Important Notes
+```bash
+python -m smartcrack identify '<hash>'
+python -m smartcrack identify hashes.txt
+python -m smartcrack wordlists --add /path/to/rockyou.txt
+python -m smartcrack wordlists --show
+python -m smartcrack doctor
+python -m smartcrack crack secret.pdf
+python -m smartcrack crack archive.zip --backend john
+python -m smartcrack crack dump.hash --wordlist /path/to/wordlist.txt
+```
 
-* This script is intended for ethical use only. Do not use it to crack passwords for PDFs that you do not have authorization to access.
-* The success of this script depends on the strength and comprehensiveness of your wordlist.
-* For very strong passwords, this method may take a significant amount of time or may not be successful.
-* Consider using more advanced password cracking tools if you need to crack very strong passwords.
-* This is a dictionary attack. For stronger passwords, a brute force attack or other more sophisticated methods would be needed.
+Legacy compatibility:
 
-## Contributing
+```bash
+python pdf_cracker.py crack secret.pdf
+```
 
-Feel free to contribute to this project by submitting pull requests or opening issues.
+## Architecture
+
+```text
+smartcrack/
+  cli.py                  # CLI orchestration
+  detectors/              # file/hash target detection
+  extractors/             # extractor wrappers (pdf2john, etc.)
+  identifiers/            # hash identification + confidence
+  crackers/               # backend selection + engine run
+  config/                 # persisted app/wordlist configuration
+  sessions/               # saved crack session metadata
+  utils/                  # subprocess wrappers
+  plugins/                # extension point
+```
+
+## Current limitations / next steps
+
+- Add richer hash normalization and multi-line hash file support
+- Add plugin registration interface
+- Add benchmark mode and GPU capability profiling
+- Add deeper John/Hashcat output parsers for live progress metrics
+
+
+## Operational improvements in this revision
+
+- Added `doctor` command to verify runtime dependencies before cracking.
+- Added attack controls in `crack`: `--attack-mode dictionary|mask`, `--mask`, and `--rule`.
+- Added stricter wordlist validation and clearer backend error handling.
